@@ -1,0 +1,69 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    ports:
+      - "4000:4000"
+    configs:
+      - source: litellm_config
+        target: /app/config.yaml
+    environment:
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+    command: --config /app/config.yaml --detailed_debug
+    restart: unless-stopped
+    networks:
+      - openwebui-network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+    depends_on:
+      - litellm
+    restart: unless-stopped
+    networks:
+      - openwebui-network
+
+volumes:
+  open-webui-data:
+
+networks:
+  openwebui-network:
+    driver: bridge
+
+configs:
+  litellm_config:
+    content: |
+      model_list:
+        # Azure AI Foundry deployed models
+        - model_name: gpt-4o
+          litellm_params:
+            model: azure/gpt-4o
+            api_base: ${AZURE_API_BASE}
+            api_key: ${AZURE_API_KEY}
+            api_version: ${AZURE_API_VERSION}
+
+        - model_name: gpt-4o-mini
+          litellm_params:
+            model: azure/gpt-4o-mini
+            api_base: ${AZURE_API_BASE}
+            api_key: ${AZURE_API_KEY}
+            api_version: ${AZURE_API_VERSION}
+
+        # Add more models as needed following the same pattern
+
+      litellm_settings:
+        drop_params: true
+        success_callback: []
+
+      general_settings:
+        master_key: ${LITELLM_MASTER_KEY}  # API key for accessing LiteLLM proxy
