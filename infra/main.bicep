@@ -53,15 +53,7 @@ module monitoring './core/monitoring.bicep' = {
   }
 }
 
-module storage './core/storage.bicep' = {
-  name: 'storage'
-  scope: rg
-  params: {
-    location: location
-    tags: tags
-    storageAccountName: take('stowl${replace(environmentName, '-', '')}', 24)
-  }
-}
+// Removed storage module - PostgreSQL provides all persistence
 
 module containerAppsEnvironment './core/container-apps-env.bicep' = {
   name: 'container-apps-env'
