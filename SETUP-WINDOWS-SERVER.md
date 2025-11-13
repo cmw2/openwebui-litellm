@@ -1,5 +1,10 @@
 # Open WebUI + LiteLLM Setup on Windows Server 2022 with WSL2
 
+> **📌 Note:** This repository now supports **Azure Container Apps** as the primary deployment method using Azure Developer CLI (azd).
+> - For Azure deployment: See [README.md](README.md) and [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md)
+> - For local Docker development: See [SETUP-LOCAL.md](SETUP-LOCAL.md)
+> - This guide remains for reference for manual Windows Server installations.
+
 This document outlines the complete setup process for running Open WebUI and LiteLLM in Docker on WSL2, accessible via Windows Server 2022.
 
 ## Prerequisites

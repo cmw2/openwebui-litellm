@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: openwebui-litellm
+metadata:
+  template: openwebui-litellm@0.0.1-beta
+
+# Note: Container images are specified in Bicep templates (infra/app/*.bicep)
+# We use pre-built images from ghcr.io - no build or deployment step needed
+
+# Azure infrastructure configuration
+infra:
+  path: infra
+  module: main
+  parameters:
+    # Managed Identity toggle - set to true to use Azure Managed Identity instead of API key
+    useManagedIdentity:
+      type: boolean
+      default: false
+    # Azure AI Foundry / OpenAI configuration
+    azureApiKey:
+      type: string
+      secret: true
+      default: ""
+    azureApiBase:
+      type: string
+    azureApiVersion:
+      type: string
+      default: "2024-08-01-preview"
+    # LiteLLM master key for authentication
+    litellmMasterKey:
+      type: string
+      secret: true
+
+# Hooks for lifecycle events
+hooks:
+  preprovision:
+    posix:
+      shell: sh
+      run: echo "Preparing to provision Azure resources..."
+    windows:
+      shell: pwsh
+      run: Write-Host "Preparing to provision Azure resources..."
+  
+  postprovision:
+    posix:
+      shell: sh
+      run: echo "Azure resources provisioned successfully!"
+    windows:
+      shell: pwsh
+      run: Write-Host "Azure resources provisioned successfully!"
+  
+  predeploy:
+    posix:
+      shell: sh
+      run: echo "Preparing to deploy containers..."
+    windows:
+      shell: pwsh
+      run: Write-Host "Preparing to deploy containers..."
+  
+  postdeploy:
+    posix:
+      shell: sh
+      run: |
+        echo ""
+        echo "✅ Deployment complete!"
+        echo ""
+        echo "Access Open WebUI at the URL shown above."
+        echo "It may take 2-3 minutes for the containers to fully start."
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host ""
+        Write-Host "✅ Deployment complete!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Access Open WebUI at the URL shown above."
+        Write-Host "It may take 2-3 minutes for the containers to fully start."

@@ -1,5 +1,10 @@
 # Open WebUI + LiteLLM Setup Guide (Linux/Ubuntu)
 
+> **📌 Note:** This repository now supports **Azure Container Apps** as the primary deployment method using Azure Developer CLI (azd).
+> - For Azure deployment: See [README.md](README.md) and [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md)
+> - For local Docker development: See [SETUP-LOCAL.md](SETUP-LOCAL.md)
+> - This guide remains for reference for manual Linux server installations.
+
 This guide walks through setting up Open WebUI with LiteLLM as a proxy to Azure AI Foundry on Ubuntu Linux.
 
 ## Prerequisites
