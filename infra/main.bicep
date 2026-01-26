@@ -42,46 +42,102 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: tags
 }
 
-// Core infrastructure: Log Analytics, Container Apps Environment, Storage
-module monitoring './core/monitoring.bicep' = {
+// Core infrastructure: Log Analytics using AVM
+module monitoring 'br/public:avm/res/operational-insights/workspace:0.12.0' = {
   name: 'monitoring'
   scope: rg
   params: {
+    name: 'log-${environmentName}'
     location: location
     tags: tags
-    logAnalyticsName: 'log-${environmentName}'
   }
+}
+
+// Reference existing Log Analytics workspace to get keys
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
+  scope: rg
+  name: 'log-${environmentName}'
 }
 
 // Removed storage module - PostgreSQL provides all persistence
 
-module containerAppsEnvironment './core/container-apps-env.bicep' = {
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.3' = {
   name: 'container-apps-env'
   scope: rg
   params: {
+    name: 'cae-${environmentName}'
     location: location
     tags: tags
-    containerAppsEnvironmentName: 'cae-${environmentName}'
-    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    zoneRedundant: false // Required to be false for Consumption plan without custom VNET
+    workloadProfiles: [
+      {
+        name: 'Consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalytics.properties.customerId
+        sharedKey: logAnalytics.listKeys().primarySharedKey
+      }
+    }
   }
+  dependsOn: [
+    monitoring
+  ]
 }
 
-// PostgreSQL Flexible Server for persistent data storage
+// PostgreSQL Flexible Server for persistent data storage using AVM
 var postgresPassword = uniqueString(rg.id, 'postgres', environmentName)
 
-module postgres './core/postgres.bicep' = {
+module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.0' = {
   name: 'postgres'
   scope: rg
   params: {
+    name: 'pg-owui-${uniqueString(rg.id)}'
     location: 'centralus' // PostgreSQL not available in eastus2, deploy to Central US
     tags: tags
-    name: 'pg-owui-${uniqueString(rg.id)}' // Globally unique name
-    databaseName: 'openwebui'
     administratorLogin: 'pgadmin'
     administratorLoginPassword: postgresPassword
-    allowAzureIPsFirewall: true
+    skuName: 'Standard_B1ms'
+    tier: 'Burstable'
+    storageSizeGB: 32
+    version: '16'
+    availabilityZone: 1 // Required by AVM module
+    highAvailability: 'Disabled' // Explicitly disable HA for Burstable tier
+    databases: [
+      {
+        name: 'openwebui'
+      }
+    ]
+    firewallRules: [
+      {
+        name: 'AllowAllAzureServicesAndResourcesWithinAzureIps'
+        startIpAddress: '0.0.0.0'
+        endIpAddress: '0.0.0.0'
+      }
+    ]
+    // Enable diagnostic settings to send logs to Log Analytics
+    diagnosticSettings: [
+      {
+        name: 'sendToLogAnalytics'
+        workspaceResourceId: monitoring.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs'
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+      }
+    ]
   }
 }
+
 
 // LiteLLM configuration content
 var litellmConfig = '''
@@ -119,7 +175,7 @@ module litellm './app/litellm.bicep' = {
   params: {
     location: location
     tags: tags
-    containerAppsEnvironmentId: containerAppsEnvironment.outputs.containerAppsEnvironmentId
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.resourceId
     containerAppName: 'ca-litellm-${environmentName}'
     containerImage: 'ghcr.io/berriai/litellm:main-latest'
     useManagedIdentity: useManagedIdentity
@@ -138,13 +194,13 @@ module openwebui './app/openwebui.bicep' = {
   params: {
     location: location
     tags: tags
-    containerAppsEnvironmentId: containerAppsEnvironment.outputs.containerAppsEnvironmentId
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.resourceId
     containerAppName: 'ca-openwebui-${environmentName}'
     containerImage: 'ghcr.io/open-webui/open-webui:main'
     litellmUrl: litellm.outputs.litellmInternalUrl
     litellmMasterKey: litellmMasterKey
-    postgresServerFqdn: postgres.outputs.postgresServerFqdn
-    postgresDatabaseName: postgres.outputs.databaseName
+    postgresServerFqdn: postgres.outputs.fqdn!
+    postgresDatabaseName: 'openwebui'
     postgresAdminLogin: 'pgadmin'
     postgresAdminPassword: postgresPassword
   }
@@ -155,7 +211,7 @@ module openwebui './app/openwebui.bicep' = {
 // Outputs for azd and user reference
 output AZURE_LOCATION string = location
 output AZURE_RESOURCE_GROUP string = rg.name
-output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.containerAppsEnvironmentId
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.resourceId
 
 output LITELLM_URI string = litellm.outputs.litellmInternalUrl
 output LITELLM_NAME string = litellm.outputs.containerAppName
@@ -163,5 +219,5 @@ output LITELLM_NAME string = litellm.outputs.containerAppName
 output OPENWEBUI_URI string = openwebui.outputs.openwebuiUrl
 output OPENWEBUI_NAME string = openwebui.outputs.containerAppName
 
-output POSTGRES_SERVER string = postgres.outputs.postgresServerFqdn
-output POSTGRES_DATABASE string = postgres.outputs.databaseName
+output POSTGRES_SERVER string = postgres.outputs.fqdn!
+output POSTGRES_DATABASE string = 'openwebui'
