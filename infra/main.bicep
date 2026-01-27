@@ -53,12 +53,6 @@ module monitoring 'br/public:avm/res/operational-insights/workspace:0.12.0' = {
   }
 }
 
-// Reference existing Log Analytics workspace to get keys
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
-  scope: rg
-  name: 'log-${environmentName}'
-}
-
 // Removed storage module - PostgreSQL provides all persistence
 
 module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.3' = {
@@ -78,14 +72,11 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
-        customerId: logAnalytics.properties.customerId
-        sharedKey: logAnalytics.listKeys().primarySharedKey
+        customerId: monitoring.outputs.logAnalyticsWorkspaceId
+        sharedKey: monitoring.outputs.primarySharedKey
       }
     }
   }
-  dependsOn: [
-    monitoring
-  ]
 }
 
 // PostgreSQL Flexible Server for persistent data storage using AVM
