@@ -19,10 +19,10 @@ azd up
 
 The `azd up` command will:
 1. Prompt you for Azure subscription, location, and environment name
-2. Ask for your Azure AI Foundry credentials
-3. Provision all Azure resources (Container Apps, Storage, Log Analytics)
+2. Provision a self-contained Azure AI Foundry account, project, and GPT-5.4 model deployments
+3. Provision private PostgreSQL networking and a VNet-integrated Container Apps environment
 4. Deploy the containers
-5. Provide you with the HTTPS URL to access Open WebUI
+5. Provide the HTTPS URL to access Open WebUI
 
 **First-time setup takes ~5-10 minutes.** Updates with `azd deploy` take ~2-3 minutes.
 
@@ -30,28 +30,18 @@ The `azd up` command will:
 
 - [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - Azure subscription with permissions to create resources
-- Azure AI Foundry with deployed models (gpt-4o, gpt-4o-mini, etc.)
 
 ### Configuration
 
 Before running `azd up`, you'll be prompted for:
 
 ```bash
-# Required
-AZURE_API_BASE=https://your-project.openai.azure.com/
-LITELLM_MASTER_KEY=sk-your-secure-random-key
-
-# Authentication - Choose one:
-# Option 1: API Key (simpler for testing)
-USE_MANAGED_IDENTITY=false
-AZURE_API_KEY=your-azure-api-key
-
-# Option 2: Managed Identity (recommended for production - no key needed!)
-# USE_MANAGED_IDENTITY=true
-# AZURE_API_KEY=  # Leave empty
+# Required secrets
+litellmMasterKey=sk-your-secure-random-key
+postgresAdminPassword=your-secure-postgres-password
 ```
 
-**Managed Identity** provides passwordless authentication and is more secure for production. See [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md) for configuration details.
+LiteLLM uses its managed identity to access the Foundry account. No external model endpoint or API key is required.
 
 **📖 Detailed Azure deployment instructions:** [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md)
 
@@ -91,13 +81,13 @@ Open your browser to http://localhost:3000
 
 ## 📝 Model Configuration
 
-Edit `litellm-config.yaml` to add your Azure AI Foundry deployed models:
+The Azure deployment provisions `gpt-5.4` and `gpt-5.4-mini` and exposes them through LiteLLM. For local Docker development, edit `litellm-config.yaml` to add models from your own Azure AI Foundry account:
 
 ```yaml
 model_list:
-  - model_name: gpt-4o
+  - model_name: gpt-5.4
     litellm_params:
-      model: azure/gpt-4o
+      model: azure/gpt-5.4
       api_base: ${AZURE_API_BASE}
       api_key: ${AZURE_API_KEY}
       api_version: ${AZURE_API_VERSION}
@@ -120,7 +110,9 @@ docker-compose restart litellm
 ### Azure Container Apps Deployment
 - **Open WebUI**: External HTTPS ingress, auto-scaling (1-5 replicas)
 - **LiteLLM**: Internal-only ingress, auto-scaling (1-3 replicas)
-- **Storage**: Azure Files for persistent data
+- **Azure AI Foundry**: Self-contained account, project, and GPT-5.4 deployments
+- **Storage**: Private PostgreSQL Flexible Server for persistent data
+- **Network**: VNet-integrated Container Apps; PostgreSQL has no public access
 - **Monitoring**: Log Analytics workspace integration
 
 ### Local Docker Deployment

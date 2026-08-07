@@ -12,22 +12,13 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-@description('Use Managed Identity for Azure authentication instead of API key')
-param useManagedIdentity bool = false
-
-@description('Azure OpenAI / AI Foundry API Key (only required if useManagedIdentity is false)')
-@secure()
-param azureApiKey string = ''
-
-@description('Azure OpenAI / AI Foundry API Base URL')
-param azureApiBase string
-
-@description('Azure OpenAI / AI Foundry API Version')
-param azureApiVersion string = '2024-08-01-preview'
-
 @description('LiteLLM Master Key for API authentication')
 @secure()
 param litellmMasterKey string
+
+@description('PostgreSQL administrator password')
+@secure()
+param postgresAdminPassword string
 
 // Tags for all resources
 var tags = {
@@ -40,6 +31,32 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: 'rg-${environmentName}'
   location: location
   tags: tags
+}
+
+var aiServicesAccountName = 'aif-${environmentName}-${uniqueString(rg.id)}'
+var aiProjectName = 'proj-${environmentName}'
+
+module network './core/network.bicep' = {
+  name: 'network'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    vnetName: 'vnet-${environmentName}'
+  }
+}
+
+// Foundry provides a self-contained model platform for this app and future
+// Foundry Agents workloads.
+module foundry './core/foundry.bicep' = {
+  name: 'foundry'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    accountName: aiServicesAccountName
+    projectName: aiProjectName
+  }
 }
 
 // Core infrastructure: Log Analytics using AVM
@@ -63,6 +80,8 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.
     location: location
     tags: tags
     zoneRedundant: false // Required to be false for Consumption plan without custom VNET
+    publicNetworkAccess: 'Enabled'
+    infrastructureSubnetResourceId: network.outputs.acaInfrastructureSubnetId
     workloadProfiles: [
       {
         name: 'Consumption'
@@ -80,33 +99,31 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.
 }
 
 // PostgreSQL Flexible Server for persistent data storage using AVM
-var postgresPassword = uniqueString(rg.id, 'postgres', environmentName)
-
 module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.0' = {
   name: 'postgres'
   scope: rg
   params: {
     name: 'pg-owui-${uniqueString(rg.id)}'
-    location: 'centralus' // PostgreSQL not available in eastus2, deploy to Central US
+    location: location
     tags: tags
     administratorLogin: 'pgadmin'
-    administratorLoginPassword: postgresPassword
+    administratorLoginPassword: postgresAdminPassword
+    authConfig: {
+      activeDirectoryAuth: 'Disabled'
+      passwordAuth: 'Enabled'
+    }
     skuName: 'Standard_B1ms'
     tier: 'Burstable'
     storageSizeGB: 32
     version: '16'
     availabilityZone: 1 // Required by AVM module
     highAvailability: 'Disabled' // Explicitly disable HA for Burstable tier
+    publicNetworkAccess: 'Disabled'
+    delegatedSubnetResourceId: network.outputs.postgresDelegatedSubnetId
+    privateDnsZoneArmResourceId: network.outputs.postgresPrivateDnsZoneId
     databases: [
       {
         name: 'openwebui'
-      }
-    ]
-    firewallRules: [
-      {
-        name: 'AllowAllAzureServicesAndResourcesWithinAzureIps'
-        startIpAddress: '0.0.0.0'
-        endIpAddress: '0.0.0.0'
       }
     ]
     // Enable diagnostic settings to send logs to Log Analytics
@@ -134,18 +151,16 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.0' = 
 var litellmConfig = '''
 model_list:
   # Azure AI Foundry deployed models
-  - model_name: gpt-4o
+  - model_name: gpt-5.4
     litellm_params:
-      model: azure/gpt-4o
+      model: azure/gpt-5.4
       api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
       api_version: os.environ/AZURE_API_VERSION
 
-  - model_name: gpt-4o-mini
+  - model_name: gpt-5.4-mini
     litellm_params:
-      model: azure/gpt-4o-mini
+      model: azure/gpt-5.4-mini
       api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
       api_version: os.environ/AZURE_API_VERSION
 
   # Add more models as needed following the same pattern
@@ -153,8 +168,7 @@ model_list:
 litellm_settings:
   drop_params: true
   success_callback: []
-  enable_azure_ad_token_refresh: true  # Enable fallback to managed identity when API key is not provided
-
+  enable_azure_ad_token_refresh: true
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 '''
@@ -169,12 +183,20 @@ module litellm './app/litellm.bicep' = {
     containerAppsEnvironmentId: containerAppsEnvironment.outputs.resourceId
     containerAppName: 'ca-litellm-${environmentName}'
     containerImage: 'ghcr.io/berriai/litellm:main-latest'
-    useManagedIdentity: useManagedIdentity
-    azureApiKey: azureApiKey
-    azureApiBase: azureApiBase
-    azureApiVersion: azureApiVersion
+    useManagedIdentity: true
+    azureApiBase: foundry.outputs.accountEndpoint
+    azureApiVersion: '2025-04-01-preview'
     litellmMasterKey: litellmMasterKey
     litellmConfig: litellmConfig
+  }
+}
+
+module litellmOpenAiUserRole './core/foundry-openai-user-role.bicep' = {
+  name: 'litellm-openai-user-role'
+  scope: rg
+  params: {
+    accountName: foundry.outputs.accountName
+    principalId: litellm.outputs.principalId
   }
 }
 
@@ -193,7 +215,8 @@ module openwebui './app/openwebui.bicep' = {
     postgresServerFqdn: postgres.outputs.fqdn!
     postgresDatabaseName: 'openwebui'
     postgresAdminLogin: 'pgadmin'
-    postgresAdminPassword: postgresPassword
+    postgresAdminPassword: postgresAdminPassword
+    configVersion: deployment().name
   }
 }
 
@@ -212,3 +235,8 @@ output OPENWEBUI_NAME string = openwebui.outputs.containerAppName
 
 output POSTGRES_SERVER string = postgres.outputs.fqdn!
 output POSTGRES_DATABASE string = 'openwebui'
+output AZURE_AI_ACCOUNT_NAME string = foundry.outputs.accountName
+output AZURE_AI_ACCOUNT_ENDPOINT string = foundry.outputs.accountEndpoint
+output AZURE_AI_PROJECT_NAME string = foundry.outputs.projectName
+output AZURE_AI_PROJECT_ID string = foundry.outputs.projectId
+output AZURE_AI_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint

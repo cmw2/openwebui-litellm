@@ -79,8 +79,8 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'litellm'
           image: containerImage
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json('1.0')
+            memory: '2Gi'
           }
           env: concat(
             [
@@ -117,7 +117,7 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 3
         rules: [
           {
@@ -138,3 +138,4 @@ output containerAppId string = litellmApp.id
 output containerAppName string = litellmApp.name
 output litellmInternalUrl string = 'http://${litellmApp.name}/v1'
 output litellmFqdn string = litellmApp.properties.configuration.ingress.fqdn
+output principalId string = litellmApp.identity.principalId

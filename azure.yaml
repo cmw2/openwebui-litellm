@@ -12,22 +12,12 @@ infra:
   path: infra
   module: main
   parameters:
-    # Managed Identity toggle - set to true to use Azure Managed Identity instead of API key
-    useManagedIdentity:
-      type: boolean
-      default: false
-    # Azure AI Foundry / OpenAI configuration
-    azureApiKey:
-      type: string
-      secret: true
-      default: ""
-    azureApiBase:
-      type: string
-    azureApiVersion:
-      type: string
-      default: "2024-08-01-preview"
     # LiteLLM master key for authentication
     litellmMasterKey:
+      type: string
+      secret: true
+    # PostgreSQL administrator password
+    postgresAdminPassword:
       type: string
       secret: true
 

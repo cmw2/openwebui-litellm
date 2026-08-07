@@ -35,6 +35,9 @@ param postgresAdminLogin string
 @secure()
 param postgresAdminPassword string
 
+@description('Changes on each infrastructure deployment to refresh secret references.')
+param configVersion string
+
 // Open WebUI Container App (create with managed identity)
 resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
@@ -89,11 +92,15 @@ resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'DATABASE_URL'
               secretRef: 'database-url'
             }
+            {
+              name: 'CONFIG_VERSION'
+              value: configVersion
+            }
           ]
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 5
         rules: [
           {
