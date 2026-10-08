@@ -1,6 +1,22 @@
 # Open WebUI + LiteLLM with Azure AI Foundry
 
-Deploy Open WebUI with LiteLLM as a proxy to your Azure AI Foundry models. This repository is configured for **Azure Container Apps** deployment using Azure Developer CLI (azd), with Docker Compose available for local development.
+Deploy Open WebUI with LiteLLM as a proxy to your Azure AI Foundry models. This repository is configured for **Azure Container Apps** deployment using Azure Developer CLI (azd).
+
+## Sample Code
+
+This repository contains sample code intended for demonstration purposes. It
+shows one way to integrate OpenWebUI, LiteLLM, API Management, Microsoft
+Foundry, Azure AI Search, and SharePoint content. The code is provided as-is
+and will require review, validation, and likely modification before use in a
+production environment.
+
+## Disclaimer
+
+**This Sample Code is provided for the purpose of illustration only and is not
+intended to be used in a production environment. THIS SAMPLE CODE AND ANY
+RELATED INFORMATION ARE PROVIDED 'AS IS' WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.**
 
 ## 🚀 Quick Start - Deploy to Azure
 
@@ -12,130 +28,120 @@ Deploy to Azure Container Apps with a single command:
 # macOS: brew tap azure/azd && brew install azd
 # Linux: curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# Initialize and deploy
+# Authenticate and create a local, Git-ignored azd environment
 azd auth login
-azd up
+azd env new <environment-name> --no-prompt
 ```
 
-The `azd up` command will:
-1. Prompt you for Azure subscription, location, and environment name
-2. Ask for your Azure AI Foundry credentials
-3. Provision all Azure resources (Container Apps, Storage, Log Analytics)
-4. Deploy the containers
-5. Provide you with the HTTPS URL to access Open WebUI
+Configure the environment and deploy using the
+[Azure deployment guide](SETUP-AZURE-CONTAINER-APPS.md). It documents the
+required secure parameters, initial-network lifecycle setting, what-if, and
+deployment helper.
 
-**First-time setup takes ~5-10 minutes.** Updates with `azd deploy` take ~2-3 minutes.
+**Allow 30-60 minutes for the first infrastructure deployment.** API Management,
+private PostgreSQL, Container Apps, Foundry model deployments, and Azure AI
+Search each provision independently. SharePoint ingestion, knowledge-base
+assets, and prompt-agent configuration are follow-on steps described in the
+[customer reference architecture](docs/customer-reference-architecture.md).
+
+After the foundation exists, an application/container configuration update is
+typically much faster, but still depends on Container Apps revision startup and
+APIM propagation.
 
 ### Prerequisites
 
 - [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - Azure subscription with permissions to create resources
-- Azure AI Foundry with deployed models (gpt-4o, gpt-4o-mini, etc.)
 
 ### Configuration
 
 Before running `azd up`, you'll be prompted for:
 
-```bash
-# Required
-AZURE_API_BASE=https://your-project.openai.azure.com/
-LITELLM_MASTER_KEY=sk-your-secure-random-key
+The required secure values are `litellmMasterKey`, `openWebUiSecretKey`,
+`postgresAdminPassword`, and `apimFoundryAgentSubscriptionKey`. Store them in
+the Git-ignored azd environment using `azd env config set
+infra.parameters.<name> <value>`; do not place them in source files.
 
-# Authentication - Choose one:
-# Option 1: API Key (simpler for testing)
-USE_MANAGED_IDENTITY=false
-AZURE_API_KEY=your-azure-api-key
+LiteLLM uses its managed identity only for its direct Azure OpenAI/Foundry
+deployment aliases: `gpt-5.4` and `gpt-5.4-mini`. Those aliases are
+advertised in OpenWebUI alongside the Foundry agent aliases. The
+Foundry **agent** aliases use a different, deliberate path: LiteLLM calls APIM
+with a product-scoped
+subscription key, and APIM uses its managed identity to access the Foundry
+agent endpoint. No Foundry resource key is required.
 
-# Option 2: Managed Identity (recommended for production - no key needed!)
-# USE_MANAGED_IDENTITY=true
-# AZURE_API_KEY=  # Leave empty
+### Declarative APIM-backed Foundry agents
+
+During deployment, Bicep loads the checked-in
+[`infra/app/litellm-config.yaml`](infra/app/litellm-config.yaml) template,
+substitutes nonsecret model-alias values, and stores the resulting configuration
+as a Container Apps secret. At startup, the LiteLLM container writes that
+secret to its own ephemeral `/app/config.yaml`; no rendered configuration file
+is created in the repository or workspace. Model aliases are not created
+through LiteLLM's administrative API.
+For the APIM-backed Foundry prompt-agent alias, provision a cryptographically
+random subscription key once:
+
+```powershell
+azd env set apimFoundryAgentSubscriptionKey '<random-value>'
 ```
 
-**Managed Identity** provides passwordless authentication and is more secure for production. See [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md) for configuration details.
+The deployment assigns that value as the LiteLLM-only APIM product
+subscription primary key and injects it into LiteLLM as a Container Apps
+secret. The checked-in YAML contains only an environment-variable reference;
+the actual key is supplied only as the `Ocp-Apim-Subscription-Key` request
+header. It is never committed to source control or stored in LiteLLM's model
+database.
+
+`store_model_in_db` is deliberately disabled so the checked-in `model_list`
+remains the source of truth. PostgreSQL remains available for LiteLLM
+operational state, but changing an agent route or alias requires an IaC
+deployment rather than an administrative API call.
 
 **📖 Detailed Azure deployment instructions:** [SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md)
 
----
+**📖 Customer reference architecture:** [docs/customer-reference-architecture.md](docs/customer-reference-architecture.md)
 
-## 💻 Local Development with Docker Compose
-
-For local development and testing, you can run the stack with Docker Compose:
-
-### 1. Configure Environment
-
-Copy `.env.template` to `.env` and fill in your Azure AI Foundry credentials:
-
-```bash
-cp .env.template .env
-```
-
-Edit `.env` with your values:
-- `AZURE_API_KEY`: Your Azure API key
-- `AZURE_API_BASE`: Your Azure endpoint
-- `AZURE_API_VERSION`: API version (typically `2024-08-01-preview`)
-- `LITELLM_MASTER_KEY`: A secure random key
-
-### 2. Start Services
-
-```bash
-docker-compose up -d
-```
-
-### 3. Access Open WebUI
-
-Open your browser to http://localhost:3000
-
-**📖 Complete local setup guide:** [SETUP-LOCAL.md](SETUP-LOCAL.md)
-
----
+**📖 SharePoint Indexed knowledge source guide:** [docs/sharepoint-indexed-knowledge-source-guide.md](docs/sharepoint-indexed-knowledge-source-guide.md)
 
 ## 📝 Model Configuration
 
-Edit `litellm-config.yaml` to add your Azure AI Foundry deployed models:
+The Azure deployment provisions `gpt-5.4` and `gpt-5.4-mini` and exposes them
+through LiteLLM:
 
 ```yaml
 model_list:
-  - model_name: gpt-4o
+  - model_name: gpt-5.4
     litellm_params:
-      model: azure/gpt-4o
-      api_base: ${AZURE_API_BASE}
-      api_key: ${AZURE_API_KEY}
-      api_version: ${AZURE_API_VERSION}
+      model: azure/gpt-5.4
+      api_base: os.environ/AZURE_API_BASE
+      api_version: os.environ/AZURE_API_VERSION
 ```
 
-**For Azure deployments:** After updating `litellm-config.yaml`, redeploy with:
+**For Azure deployments:** After updating `infra/app/litellm-config.yaml`,
+preview and deploy with:
 ```bash
-azd deploy
+.\scripts\deploy_from_azd_environment.ps1 -Mode WhatIf
+.\scripts\deploy_from_azd_environment.ps1 -Mode Deploy
 ```
-
-**For local Docker:** Restart the LiteLLM container:
-```bash
-docker-compose restart litellm
-```
-
----
 
 ## 🏗️ Architecture
 
 ### Azure Container Apps Deployment
-- **Open WebUI**: External HTTPS ingress, auto-scaling (1-5 replicas)
-- **LiteLLM**: Internal-only ingress, auto-scaling (1-3 replicas)
-- **Storage**: Azure Files for persistent data
-- **Monitoring**: Log Analytics workspace integration
-
-### Local Docker Deployment
-- **Open WebUI**: http://localhost:3000
-- **LiteLLM**: http://localhost:4000 (internal)
-- **Storage**: Docker volume
-- **Network**: Bridge network for inter-container communication
-
----
+- **Open WebUI**: External HTTPS ingress with a stable signing key and scale to zero
+- **LiteLLM**: Internal-only ingress, declarative aliases, and scale to zero
+- **API Management**: OpenAI Responses compatibility façade, managed identity to Foundry, API-scoped LiteLLM product subscription, and diagnostics
+- **Microsoft Foundry**: Account, project, GPT model deployments, and prompt agents
+- **Azure AI Search**: Semantic/hybrid retrieval, indexed SharePoint knowledge source, and Foundry IQ knowledge base
+- **Storage**: Private PostgreSQL Flexible Server for OpenWebUI and LiteLLM operational state
+- **Network**: VNet-integrated Container Apps; PostgreSQL has no public access
+- **Monitoring**: Log Analytics, Application Insights, APIM diagnostics, and a Foundry Application Insights connection
 
 ## 📚 Documentation
 
 - **[SETUP-AZURE-CONTAINER-APPS.md](SETUP-AZURE-CONTAINER-APPS.md)** - Complete Azure deployment guide
-- **[SETUP-LOCAL.md](SETUP-LOCAL.md)** - Local Docker Compose development guide
-- **[DEPLOYMENT-PLAN.md](DEPLOYMENT-PLAN.md)** - Technical implementation details
+- **[docs/customer-reference-architecture.md](docs/customer-reference-architecture.md)** - Customer architecture, permissions, and preview guidance
+- **[docs/sharepoint-indexed-knowledge-source-guide.md](docs/sharepoint-indexed-knowledge-source-guide.md)** - Portal-first and automation-first SharePoint ingestion guide
 
 ---
 
@@ -157,30 +163,12 @@ azd show
 azd down
 ```
 
-### Local Docker Compose
+## 💰 Cost Considerations
 
-```bash
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-
-# Update images
-docker-compose pull && docker-compose up -d
-```
-
----
-
-## 💰 Cost Estimate (Azure)
-
-Running in Azure Container Apps (consumption plan):
-- **Container Apps**: ~$20-40/month (varies with usage)
-- **Storage**: ~$2-5/month (10GB Azure Files)
-- **Log Analytics**: ~$2-5/month (500MB/day)
-- **Total**: ~$24-50/month for low-moderate usage
-
-*Actual costs depend on usage patterns, region, and scaling configuration.*
+Container Apps can scale to zero, but API Management Basic v2, Azure AI Search,
+private PostgreSQL, and observability can have nonzero baseline cost. Review
+regional pricing and required SKU availability before deployment. The customer
+reference architecture explains the tradeoffs.
 
 ---
 
@@ -189,8 +177,9 @@ Running in Azure Container Apps (consumption plan):
 - ✅ HTTPS enabled by default (Azure-managed certificates)
 - ✅ LiteLLM not exposed to internet (internal ingress only)
 - ✅ Secrets stored securely in Container Apps environment
-- ✅ Azure Files access via managed keys
-- ✅ Log Analytics for audit trails
+- ✅ Managed identities for Foundry and Search access where supported
+- ✅ Private PostgreSQL networking
+- ✅ Log Analytics, Application Insights, and APIM diagnostics
 
 ---
 
@@ -206,27 +195,11 @@ azd monitor --logs --service litellm
 azd show
 ```
 
-### Local Docker Issues
-```bash
-# Check container status
-docker-compose ps
-
-# View logs
-docker-compose logs litellm
-docker-compose logs open-webui
-
-# Test LiteLLM health
-curl http://localhost:4000/health
-```
-
----
-
 ## 🤝 Contributing
 
 This repository follows Azure Developer CLI (azd) conventions:
 - `azure.yaml` - azd configuration
 - `infra/` - Bicep infrastructure as code
-- `docker-compose.yml` - Local development setup
 
 ---
 

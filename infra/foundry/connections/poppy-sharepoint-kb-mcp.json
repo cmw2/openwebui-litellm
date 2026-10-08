@@ -1,0 +1,14 @@
+{
+  "name": "poppy-sharepoint-kb-mcp",
+  "type": "Microsoft.MachineLearningServices/workspaces/connections",
+  "properties": {
+    "authType": "ProjectManagedIdentity",
+    "category": "RemoteTool",
+    "target": "__SEARCH_ENDPOINT__/knowledgebases/__KNOWLEDGE_BASE_NAME__/mcp?api-version=2026-08-01-preview",
+    "isSharedToAll": true,
+    "audience": "https://search.azure.com/",
+    "metadata": {
+      "ApiType": "Azure"
+    }
+  }
+}

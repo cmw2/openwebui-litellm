@@ -1,0 +1,12 @@
+[
+  {
+    "sourceFieldName": "metadata_spo_item_weburi",
+    "targetFieldName": "doc_url",
+    "mappingFunction": null
+  },
+  {
+    "sourceFieldName": "metadata_spo_item_name",
+    "targetFieldName": "title",
+    "mappingFunction": null
+  }
+]

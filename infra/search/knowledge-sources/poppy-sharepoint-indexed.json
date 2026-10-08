@@ -1,0 +1,9 @@
+{
+  "name": "poppy-sharepoint-indexed",
+  "kind": "indexedSharePoint",
+  "containerName": "defaultSiteLibrary",
+  "contentExtractionMode": "minimal",
+  "networkAccessMode": "public",
+  "embeddingModel": "text-embedding-3-large",
+  "connectionString": "SharePointOnlineEndpoint=__SHAREPOINT_SITE_URL__;ApplicationId=__INDEXER_APPLICATION_ID__;TenantId=__TENANT_ID__;FederatedCredentialApplicationId=__SEARCH_MANAGED_IDENTITY_CLIENT_ID__"
+}

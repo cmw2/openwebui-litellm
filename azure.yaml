@@ -12,24 +12,48 @@ infra:
   path: infra
   module: main
   parameters:
-    # Managed Identity toggle - set to true to use Azure Managed Identity instead of API key
-    useManagedIdentity:
-      type: boolean
-      default: false
-    # Azure AI Foundry / OpenAI configuration
-    azureApiKey:
-      type: string
-      secret: true
-      default: ""
-    azureApiBase:
-      type: string
-    azureApiVersion:
-      type: string
-      default: "2024-08-01-preview"
     # LiteLLM master key for authentication
     litellmMasterKey:
       type: string
       secret: true
+    openWebUiSecretKey:
+      type: string
+      secret: true
+    # PostgreSQL administrator password
+    postgresAdminPassword:
+      type: string
+      secret: true
+    # APIM subscription key shared by the LiteLLM model configuration and APIM.
+    apimFoundryAgentSubscriptionKey:
+      type: string
+      secret: true
+    # Publisher email displayed in API Management
+    apimPublisherEmail:
+      type: string
+    # APIM can be placed in a paired region when its preferred region lacks Basic v2 capacity.
+    apimLocation:
+      type: string
+    # Explicit tested version tag for the stock LiteLLM container image.
+    litellmContainerImage:
+      type: string
+    # Explicit tested version tag for the stock OpenWebUI container image.
+    openwebuiContainerImage:
+      type: string
+    # Network prefixes and Search SKU are environment-specific.
+    vnetAddressPrefix:
+      type: string
+    containerAppsSubnetPrefix:
+      type: string
+    postgresSubnetPrefix:
+      type: string
+    provisionNetwork:
+      type: boolean
+    searchSkuName:
+      type: string
+    promptAgentName:
+      type: string
+    promptAgentModelAlias:
+      type: string
 
 # Hooks for lifecycle events
 hooks:
