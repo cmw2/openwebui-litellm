@@ -1,0 +1,389 @@
+{
+  "name": "Poppy reference architecture",
+  "width": 1800,
+  "height": 1050,
+  "background": "#FFFFFF",
+  "edgeKinds": {
+    "request": {
+      "style": "strokeColor=#0F6CBD;strokeWidth=2.5;",
+      "legend": "Application request / response"
+    },
+    "content": {
+      "style": "strokeColor=#107C10;strokeWidth=2.5;dashed=1;",
+      "legend": "Content ingestion or retrieval"
+    },
+    "identity": {
+      "style": "strokeColor=#5C2D91;strokeWidth=2.5;dashed=1;",
+      "legend": "Managed identity / service authorization"
+    },
+    "telemetry": {
+      "style": "strokeColor=#C19C00;strokeWidth=2;dashed=1;",
+      "legend": "Telemetry and diagnostics"
+    }
+  },
+  "cells": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "<b>Poppy reference architecture</b><br/><font color=\"#555555\">OpenWebUI, LiteLLM, APIM, Microsoft Foundry, Azure AI Search, and SharePoint</font>",
+      "x": 30,
+      "y": 18,
+      "w": 1260,
+      "h": 52,
+      "style": "fontSize=20;align=left;"
+    },
+    {
+      "id": "user-boundary",
+      "type": "boundary",
+      "label": "<b>User boundary</b>",
+      "x": 25,
+      "y": 105,
+      "w": 235,
+      "h": 275,
+      "stroke": "#6B7280",
+      "fill": "#F9FAFB"
+    },
+    {
+      "id": "user",
+      "type": "box",
+      "label": "<b>Authorized user</b><br/><font color=\"#555555\">Browser</font>",
+      "parent": "user-boundary",
+      "x": 35,
+      "y": 75,
+      "w": 160,
+      "h": 75,
+      "style": "fillColor=#FFFFFF;strokeColor=#6B7280;"
+    },
+    {
+      "id": "subscription",
+      "type": "boundary",
+      "label": "<b>Customer Azure subscription</b><br/><font color=\"#555555\">Core services: customer-selected region; APIM may use a paired region when capacity requires it</font>",
+      "x": 295,
+      "y": 90,
+      "w": 1120,
+      "h": 765,
+      "stroke": "#0078D4",
+      "fill": "#F4F9FF"
+    },
+    {
+      "id": "aca",
+      "type": "boundary",
+      "label": "<b>Container Apps environment</b><br/><font color=\"#555555\">VNet-integrated</font>",
+      "parent": "subscription",
+      "x": 25,
+      "y": 100,
+      "w": 325,
+      "h": 400,
+      "stroke": "#00A4EF",
+      "fill": "#FFFFFF"
+    },
+    {
+      "id": "openwebui",
+      "type": "icon",
+      "image": "img/lib/azure2/other/Worker_Container_App.svg",
+      "label": "<b>OpenWebUI</b><br/><font color=\"#555555\">Public HTTPS UI<br/>stable signing key</font>",
+      "parent": "aca",
+      "x": 38,
+      "y": 75,
+      "size": 68,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "litellm",
+      "type": "icon",
+      "image": "img/lib/azure2/other/Worker_Container_App.svg",
+      "label": "<b>LiteLLM</b><br/><font color=\"#555555\">Internal-only gateway<br/>declarative model aliases</font>",
+      "parent": "aca",
+      "x": 205,
+      "y": 75,
+      "size": 68,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "postgres",
+      "type": "icon",
+      "image": "img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg",
+      "label": "<b>Private PostgreSQL</b><br/><font color=\"#555555\">OpenWebUI users/chats<br/>LiteLLM operational state</font>",
+      "parent": "aca",
+      "x": 125,
+      "y": 250,
+      "size": 68,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "apim",
+      "type": "icon",
+      "image": "img/lib/azure2/integration/API_Management_Services.svg",
+      "label": "<b>API Management</b><br/><font color=\"#555555\">Responses façade<br/>LiteLLM-only product<br/>managed identity to agents</font>",
+      "parent": "subscription",
+      "x": 415,
+      "y": 205,
+      "size": 78,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "foundry-boundary",
+      "type": "boundary",
+      "label": "<b>Microsoft Foundry account and project</b>",
+      "parent": "subscription",
+      "x": 590,
+      "y": 55,
+      "w": 255,
+      "h": 295,
+      "stroke": "#5C2D91",
+      "fill": "#FFFFFF"
+    },
+    {
+      "id": "agents",
+      "type": "icon",
+      "image": "img/lib/azure2/ai_machine_learning/Foundry_Agent_Service.svg",
+      "label": "<b>Prompt agents</b><br/><font color=\"#555555\">General<br/>Direct Search<br/>Knowledge Base MCP</font>",
+      "parent": "foundry-boundary",
+      "x": 30,
+      "y": 70,
+      "size": 72,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "models",
+      "type": "icon",
+      "image": "img/lib/azure2/ai_machine_learning/Foundry_Models.svg",
+      "label": "<b>Model deployments</b><br/><font color=\"#555555\">Chat + embeddings</font>",
+      "parent": "foundry-boundary",
+      "x": 150,
+      "y": 75,
+      "size": 62,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "search-boundary",
+      "type": "boundary",
+      "label": "<b>Azure AI Search</b><br/><font color=\"#555555\">Semantic/hybrid retrieval and agentic retrieval</font>",
+      "parent": "subscription",
+      "x": 570,
+      "y": 395,
+      "w": 470,
+      "h": 275,
+      "stroke": "#107C10",
+      "fill": "#FFFFFF"
+    },
+    {
+      "id": "search",
+      "type": "icon",
+      "image": "img/lib/azure2/app_services/Search_Services.svg",
+      "label": "<b>Indexed SharePoint source</b><br/><font color=\"#555555\">Generated indexer, index,<br/>skillset, and vector index</font>",
+      "parent": "search-boundary",
+      "x": 45,
+      "y": 80,
+      "size": 72,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "iq",
+      "type": "icon",
+      "image": "img/lib/azure2/ai_machine_learning/AI_Foundry_IQ.svg",
+      "label": "<b>Foundry IQ knowledge base</b><br/><font color=\"#555555\">MCP knowledge_base_retrieve</font>",
+      "parent": "search-boundary",
+      "x": 270,
+      "y": 82,
+      "size": 72,
+      "labelPosition": "bottom"
+    },
+    {
+      "id": "observability",
+      "type": "boundary",
+      "label": "<b>Observability</b>",
+      "parent": "subscription",
+      "x": 390,
+      "y": 535,
+      "w": 145,
+      "h": 135,
+      "stroke": "#C19C00",
+      "fill": "#FFFBEA"
+    },
+    {
+      "id": "appinsights",
+      "type": "box",
+      "label": "<b>Application Insights</b><br/><font color=\"#555555\">Log Analytics workspace<br/>APIM diagnostics<br/>Foundry connection</font>",
+      "parent": "observability",
+      "x": 12,
+      "y": 40,
+      "w": 120,
+      "h": 62,
+      "style": "fillColor=#FFFFFF;strokeColor=#C19C00;"
+    },
+    {
+      "id": "m365",
+      "type": "boundary",
+      "label": "<b>Microsoft 365 tenant</b>",
+      "x": 1470,
+      "y": 235,
+      "w": 275,
+      "h": 275,
+      "stroke": "#038387",
+      "fill": "#F2FCFC"
+    },
+    {
+      "id": "sharepoint",
+      "type": "box",
+      "label": "<b>SharePoint document library</b><br/><font color=\"#555555\">Approved source documents<br/>Sites.Selected + one-site read</font>",
+      "parent": "m365",
+      "x": 35,
+      "y": 75,
+      "w": 205,
+      "h": 85,
+      "style": "fillColor=#FFFFFF;strokeColor=#038387;"
+    },
+    {
+      "id": "operator",
+      "type": "box",
+      "label": "<b>One-time operator</b><br/><font color=\"#555555\">Delegated Graph grant</font>",
+      "parent": "m365",
+      "x": 50,
+      "y": 190,
+      "w": 175,
+      "h": 48,
+      "style": "fillColor=#FFFFFF;strokeColor=#038387;"
+    },
+    {
+      "id": "preview-note",
+      "type": "note",
+      "label": "<b>Preview gate</b><br/>Indexed SharePoint and Foundry IQ require customer validation before production use. Indexed content does not itself enforce end-user SharePoint permissions at query time.",
+      "x": 1465,
+      "y": 570,
+      "w": 280,
+      "h": 125
+    },
+    {
+      "id": "citation-note",
+      "type": "note",
+      "label": "<b>Citation behavior</b><br/>Native indexer maps SharePoint web URL to <code>doc_url</code>. Knowledge-base agent can render that URL in its answer. Foundry automatic citation panels can still show service-generated links.",
+      "x": 1465,
+      "y": 720,
+      "w": 280,
+      "h": 125
+    },
+    {
+      "id": "user-openwebui",
+      "type": "edge",
+      "source": "user",
+      "target": "openwebui",
+      "label": "HTTPS chat request",
+      "kind": "request"
+    },
+    {
+      "id": "openwebui-litellm",
+      "type": "edge",
+      "source": "openwebui",
+      "target": "litellm",
+      "label": "OpenAI Responses",
+      "kind": "request"
+    },
+    {
+      "id": "litellm-apim",
+      "type": "edge",
+      "source": "litellm",
+      "target": "apim",
+      "label": "Responses + APIM product key",
+      "kind": "request"
+    },
+    {
+      "id": "apim-agents",
+      "type": "edge",
+      "source": "apim",
+      "target": "agents",
+      "label": "Agent response call",
+      "kind": "request"
+    },
+    {
+      "id": "apim-foundry-identity",
+      "type": "edge",
+      "source": "apim",
+      "target": "foundry-boundary",
+      "label": "Foundry User role + managed identity",
+      "kind": "identity",
+      "points": [[825, 255]]
+    },
+    {
+      "id": "agents-search-direct",
+      "type": "edge",
+      "source": "agents",
+      "target": "search",
+      "label": "Direct Search tool: hybrid/vector query",
+      "kind": "request",
+      "points": [[1030, 245], [1030, 520]]
+    },
+    {
+      "id": "agents-iq",
+      "type": "edge",
+      "source": "agents",
+      "target": "iq",
+      "label": "Foundry IQ MCP retrieval",
+      "kind": "request",
+      "points": [[1110, 245], [1110, 520]]
+    },
+    {
+      "id": "sharepoint-search",
+      "type": "edge",
+      "source": "sharepoint",
+      "target": "search",
+      "label": "Native SharePoint indexed ingestion",
+      "kind": "content"
+    },
+    {
+      "id": "search-models",
+      "type": "edge",
+      "source": "search",
+      "target": "models",
+      "label": "Embedding calls",
+      "kind": "identity",
+      "points": [[1130, 450], [1130, 220]]
+    },
+    {
+      "id": "operator-sharepoint",
+      "type": "edge",
+      "source": "operator",
+      "target": "sharepoint",
+      "label": "One-time site permission grant",
+      "kind": "identity"
+    },
+    {
+      "id": "openwebui-postgres",
+      "type": "edge",
+      "source": "openwebui",
+      "target": "postgres",
+      "label": "Users, sessions, chats",
+      "kind": "request"
+    },
+    {
+      "id": "litellm-postgres",
+      "type": "edge",
+      "source": "litellm",
+      "target": "postgres",
+      "label": "Operational state",
+      "kind": "request"
+    },
+    {
+      "id": "apim-telemetry",
+      "type": "edge",
+      "source": "apim",
+      "target": "appinsights",
+      "label": "Gateway diagnostics",
+      "kind": "telemetry"
+    },
+    {
+      "id": "foundry-telemetry",
+      "type": "edge",
+      "source": "foundry-boundary",
+      "target": "appinsights",
+      "label": "Foundry traces",
+      "kind": "telemetry",
+      "points": [[860, 675]]
+    }
+  ],
+  "legend": {
+    "x": 30,
+    "y": 895,
+    "w": 790
+  }
+}

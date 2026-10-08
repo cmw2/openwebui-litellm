@@ -27,7 +27,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-12-01' = {
     allowProjectManagement: true
     customSubDomainName: accountName
     publicNetworkAccess: 'Enabled'
-    disableLocalAuth: false
+    disableLocalAuth: true
   }
 }
 
@@ -83,9 +83,31 @@ resource gpt54MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
   }
 }
 
+resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-12-01' = {
+  parent: aiServices
+  name: 'text-embedding-3-large'
+  dependsOn: [
+    gpt54MiniDeployment
+  ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 20
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'text-embedding-3-large'
+      version: '1'
+    }
+    raiPolicyName: 'Microsoft.Default'
+  }
+}
+
 output accountId string = aiServices.id
 output accountName string = aiServices.name
 output accountEndpoint string = aiServices.properties.endpoint
+output accountPrincipalId string = aiServices.identity.principalId
 output projectId string = aiProject.id
 output projectName string = aiProject.name
+output projectPrincipalId string = aiProject.identity.principalId
 output projectEndpoint string = 'https://${accountName}.services.ai.azure.com/api/projects/${projectName}'

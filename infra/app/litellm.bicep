@@ -15,13 +15,6 @@ param containerAppName string
 @description('Container image to deploy')
 param containerImage string
 
-@description('Use Managed Identity for Azure authentication instead of API key')
-param useManagedIdentity bool = false
-
-@description('Azure OpenAI / AI Foundry API Key (only required if useManagedIdentity is false)')
-@secure()
-param azureApiKey string = ''
-
 @description('Azure OpenAI / AI Foundry API Base URL')
 param azureApiBase string
 
@@ -32,29 +25,43 @@ param azureApiVersion string
 @secure()
 param litellmMasterKey string
 
+@description('LiteLLM database connection string')
+@secure()
+param databaseUrl string
+
 @description('LiteLLM configuration YAML content')
 @secure()
 param litellmConfig string
 
+@description('APIM base URL for the Foundry prompt-agent Responses facade.')
+param apimFoundryAgentBaseUrl string
+
+@description('APIM subscription key used only by LiteLLM for the Foundry prompt-agent API.')
+@secure()
+param apimFoundryAgentSubscriptionKey string
+
+param apimDirectSearchBaseUrl string
+
+param apimKnowledgeBaseBaseUrl string
+
 // LiteLLM Container App
-resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource litellmApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
   location: location
   tags: tags
-  identity: useManagedIdentity ? {
+  identity: {
     type: 'SystemAssigned'
-  } : null
+  }
   properties: {
     environmentId: containerAppsEnvironmentId
     configuration: {
       ingress: {
-        external: false // Internal only - not exposed to internet
+        external: false
         targetPort: 4000
         transport: 'http'
         allowInsecure: false
       }
-      secrets: concat(
-        [
+      secrets: [
           {
             name: 'litellm-master-key'
             value: litellmMasterKey
@@ -63,15 +70,15 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'litellm-config'
             value: litellmConfig
           }
-        ],
-        // Only add azure-api-key secret if not using managed identity
-        !useManagedIdentity && !empty(azureApiKey) ? [
           {
-            name: 'azure-api-key'
-            value: azureApiKey
+            name: 'database-url'
+            value: databaseUrl
           }
-        ] : []
-      )
+          {
+            name: 'apim-foundry-agent-subscription-key'
+            value: apimFoundryAgentSubscriptionKey
+          }
+        ]
     }
     template: {
       containers: [
@@ -82,8 +89,7 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('1.0')
             memory: '2Gi'
           }
-          env: concat(
-            [
+          env: [
               {
                 name: 'AZURE_API_BASE'
                 value: azureApiBase
@@ -100,15 +106,27 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
                 name: 'LITELLM_CONFIG'
                 secretRef: 'litellm-config'
               }
-            ],
-            // Only add AZURE_API_KEY env var if not using managed identity
-            !useManagedIdentity && !empty(azureApiKey) ? [
               {
-                name: 'AZURE_API_KEY'
-                secretRef: 'azure-api-key'
+                name: 'DATABASE_URL'
+                secretRef: 'database-url'
               }
-            ] : []
-          )
+              {
+                name: 'APIM_FOUNDRY_AGENT_BASE_URL'
+                value: apimFoundryAgentBaseUrl
+              }
+              {
+                name: 'APIM_FOUNDRY_AGENT_SUBSCRIPTION_KEY'
+                secretRef: 'apim-foundry-agent-subscription-key'
+              }
+              {
+                name: 'APIM_DIRECT_SEARCH_BASE_URL'
+                value: apimDirectSearchBaseUrl
+              }
+              {
+                name: 'APIM_KNOWLEDGE_BASE_BASE_URL'
+                value: apimKnowledgeBaseBaseUrl
+              }
+            ]
           command: [
             '/bin/sh'
             '-c'
@@ -117,6 +135,7 @@ resource litellmApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
+        cooldownPeriod: 1800
         minReplicas: 0
         maxReplicas: 3
         rules: [

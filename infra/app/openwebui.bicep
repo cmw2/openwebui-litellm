@@ -22,24 +22,21 @@ param litellmUrl string
 @secure()
 param litellmMasterKey string
 
-@description('PostgreSQL Server FQDN')
-param postgresServerFqdn string
-
-@description('PostgreSQL Database Name')
-param postgresDatabaseName string
-
-@description('PostgreSQL Administrator Login')
-param postgresAdminLogin string
-
-@description('PostgreSQL Administrator Password')
 @secure()
-param postgresAdminPassword string
+param webuiSecretKey string
+
+@description('OpenWebUI PostgreSQL connection string.')
+@secure()
+param databaseUrl string
 
 @description('Changes on each infrastructure deployment to refresh secret references.')
 param configVersion string
 
+@description('LiteLLM alias for the Foundry Responses agent.')
+param foundryAgentModelAliases array
+
 // Open WebUI Container App (create with managed identity)
-resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource openwebuiApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
   location: location
   tags: tags
@@ -61,12 +58,12 @@ resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: litellmMasterKey
         }
         {
-          name: 'postgres-password'
-          value: postgresAdminPassword
+          name: 'webui-secret-key'
+          value: webuiSecretKey
         }
         {
           name: 'database-url'
-          value: 'postgresql://${postgresAdminLogin}:${postgresAdminPassword}@${postgresServerFqdn}:5432/${postgresDatabaseName}?sslmode=require'
+          value: databaseUrl
         }
       ]
     }
@@ -89,6 +86,26 @@ resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
               secretRef: 'litellm-master-key'
             }
             {
+              name: 'WEBUI_SECRET_KEY'
+              secretRef: 'webui-secret-key'
+            }
+            {
+              name: 'OPENAI_API_BASE_URLS'
+              value: litellmUrl
+            }
+            {
+              name: 'OPENAI_API_KEYS'
+              secretRef: 'litellm-master-key'
+            }
+            {
+              name: 'OPENAI_API_CONFIGS'
+              value: '{"0":{"api_type":"responses","model_ids":${string(foundryAgentModelAliases)}}}'
+            }
+            {
+              name: 'ENABLE_PERSISTENT_CONFIG'
+              value: 'false'
+            }
+            {
               name: 'DATABASE_URL'
               secretRef: 'database-url'
             }
@@ -100,6 +117,7 @@ resource openwebuiApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
+        cooldownPeriod: 1800
         minReplicas: 0
         maxReplicas: 5
         rules: [

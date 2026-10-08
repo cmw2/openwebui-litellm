@@ -44,7 +44,10 @@ param(
 
     [Parameter(Mandatory = $false, HelpMessage = "Roles to grant (e.g., 'read', 'write', 'owner')")]
     [ValidateSet("read", "write", "owner")]
-    [string[]]$Roles = @("read")
+    [string[]]$Roles = @("read"),
+
+    [Parameter(Mandatory = $false, HelpMessage = "Use device-code authentication when no desktop window handle is available.")]
+    [switch]$UseDeviceAuthentication
 )
 
 # ============================================
@@ -56,7 +59,15 @@ if (-not $SitePath.StartsWith("/")) {
     $SitePath = "/$SitePath"
 }
 
-Connect-MgGraph -Scopes "Sites.FullControl.All"
+$connectParams = @{
+  Scopes = "Sites.FullControl.All"
+}
+
+if ($UseDeviceAuthentication) {
+  $connectParams.UseDeviceAuthentication = $true
+}
+
+Connect-MgGraph @connectParams
 
 # get site by path
 $siteUri = "https://graph.microsoft.com/v1.0/sites/$($SharePointDomain):$($SitePath)"
@@ -78,7 +89,16 @@ $body = @{
   })
 }
 
-Invoke-MgGraphRequest `
+$sitePermission = Invoke-MgGraphRequest `
   -Method POST `
   -Uri "https://graph.microsoft.com/v1.0/sites/$($site.id)/permissions" `
   -Body ($body | ConvertTo-Json -Depth 5)
+
+[pscustomobject]@{
+  SiteId = $site.id
+  SiteUrl = $site.webUrl
+  ApplicationClientId = $AppClientId
+  ApplicationDisplayName = $AppDisplayName
+  Roles = $sitePermission.roles
+  PermissionId = $sitePermission.id
+}

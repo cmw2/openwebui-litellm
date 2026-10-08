@@ -1,0 +1,17 @@
+{
+  "name": "__KNOWLEDGE_BASE_NAME__",
+  "description": "Reusable agentic retrieval knowledge base for the Poppy SharePoint proof of concept.",
+  "knowledgeSources": [
+    {
+      "name": "poppy-sharepoint-indexed"
+    }
+  ],
+  "retrieveDefaults": {
+    "maxRuntimeInSeconds": 45,
+    "maxOutputDocuments": 8,
+    "maxOutputSizeInTokens": 12000
+  },
+  "retrievalReasoningEffort": {
+    "kind": "minimal"
+  }
+}

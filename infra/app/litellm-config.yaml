@@ -1,0 +1,50 @@
+model_list:
+  # Azure AI Foundry deployed models
+  - model_name: gpt-5.4
+    litellm_params:
+      model: azure/gpt-5.4
+      api_base: os.environ/AZURE_API_BASE
+      api_version: os.environ/AZURE_API_VERSION
+
+  - model_name: gpt-5.4-mini
+    litellm_params:
+      model: azure/gpt-5.4-mini
+      api_base: os.environ/AZURE_API_BASE
+      api_version: os.environ/AZURE_API_VERSION
+
+  # APIM supplies the Foundry API version and managed-identity authentication.
+  # The subscription key is provided only through a Container Apps secret.
+  - model_name: "{{PROMPT_AGENT_MODEL_ALIAS}}"
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_base: os.environ/APIM_FOUNDRY_AGENT_BASE_URL
+      api_key: unused
+      extra_headers:
+        Ocp-Apim-Subscription-Key: os.environ/APIM_FOUNDRY_AGENT_SUBSCRIPTION_KEY
+
+  - model_name: "poppy-direct-search-responses"
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_base: os.environ/APIM_DIRECT_SEARCH_BASE_URL
+      api_key: unused
+      extra_headers:
+        Ocp-Apim-Subscription-Key: os.environ/APIM_FOUNDRY_AGENT_SUBSCRIPTION_KEY
+
+  - model_name: "poppy-knowledge-base-responses"
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_base: os.environ/APIM_KNOWLEDGE_BASE_BASE_URL
+      api_key: unused
+      extra_headers:
+        Ocp-Apim-Subscription-Key: os.environ/APIM_FOUNDRY_AGENT_SUBSCRIPTION_KEY
+
+litellm_settings:
+  drop_params: true
+  success_callback: []
+  enable_azure_ad_token_refresh: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Model definitions are configuration-as-code. PostgreSQL remains available
+  # for LiteLLM operational state, but it does not override this model list.
+  store_model_in_db: false
